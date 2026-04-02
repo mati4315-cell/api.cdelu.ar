@@ -74,12 +74,16 @@ async function login(request, reply) {
 
     // Buscar usuario por email con su rol
     const [users] = await pool.query(
-      `SELECT u.id, u.nombre, u.email, u.password, r.nombre as rol, u.profile_picture_url, u.created_at
-       FROM users u
-       JOIN roles r ON u.role_id = r.id
-       WHERE u.email = ?`,
+      `SELECT id, nombre, email, password, role_id, profile_picture_url, created_at
+       FROM users
+       WHERE email = ?`,
       [email]
     );
+
+    if (users.length > 0) {
+      const roleMap = { 1: 'administrador', 2: 'colaborador', 3: 'usuario' };
+      users[0].rol = roleMap[users[0].role_id] || 'usuario';
+    }
 
     console.log('👥 Usuarios encontrados:', users.length);
 

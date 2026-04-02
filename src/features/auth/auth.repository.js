@@ -4,24 +4,30 @@ const pool = require('../../config/database');
 
 async function findUserByEmail(email) {
   const [rows] = await pool.query(
-    `SELECT u.id, u.nombre, u.email, u.password, r.nombre as rol, u.profile_picture_url, u.created_at
-     FROM users u
-     JOIN roles r ON u.role_id = r.id
-     WHERE u.email = ?`,
+    `SELECT id, nombre, email, password, role_id, profile_picture_url, created_at
+     FROM users
+     WHERE email = ?`,
     [email]
   );
-  return rows.length > 0 ? rows[0] : null;
+  if (rows.length === 0) return null;
+  const user = rows[0];
+  const roleMap = { 1: 'administrador', 2: 'colaborador', 3: 'usuario' };
+  user.rol = roleMap[user.role_id] || 'usuario';
+  return user;
 }
 
 async function findUserById(id) {
   const [rows] = await pool.query(
-    `SELECT u.id, u.nombre, u.email, r.nombre as rol, u.profile_picture_url, u.created_at
-     FROM users u
-     JOIN roles r ON u.role_id = r.id
-     WHERE u.id = ?`,
+    `SELECT id, nombre, email, role_id, profile_picture_url, created_at
+     FROM users
+     WHERE id = ?`,
     [id]
   );
-  return rows.length > 0 ? rows[0] : null;
+  if (rows.length === 0) return null;
+  const user = rows[0];
+  const roleMap = { 1: 'administrador', 2: 'colaborador', 3: 'usuario' };
+  user.rol = roleMap[user.role_id] || 'usuario';
+  return user;
 }
 
 async function emailExists(email) {

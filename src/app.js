@@ -369,12 +369,16 @@ fastify.register(featureSurveysRoutes);
 fastify.register(adminRoutes);
 fastify.register(profileRoutes, { prefix: '/api/v1/profile' });
 
-// Ruta específica para el dashboard (opcional)
+// Rutas de navegación consolidadas
 fastify.get('/dashboard', async (request, reply) => {
   return reply.sendFile('dashboard.html');
 });
 
-// Ruta para la raíz que redirija al dashboard
+// Redirigir cualquier acceso a login o a la raíz hacia el dashboard
+fastify.get('/login.html', async (request, reply) => {
+    return reply.redirect('/dashboard.html');
+});
+
 fastify.get('/', async (request, reply) => {
   return reply.redirect('/dashboard.html');
 });

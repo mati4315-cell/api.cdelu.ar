@@ -1,7 +1,7 @@
 # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
-PassengerAppRoot "/home/trigamer/diario.trigamer.xyz"
+PassengerAppRoot "/home/CAMBIAME/api.cdelu.ar"
 PassengerBaseURI "/"
-PassengerNodejs "/home/trigamer/nodevenv/diario.trigamer.xyz/20/bin/node"
+PassengerNodejs "/home/CAMBIAME/nodevenv/api.cdelu.ar/20/bin/node"
 PassengerAppType node
 PassengerStartupFile passenger_app.js
 # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END

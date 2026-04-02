@@ -1,14 +1,14 @@
-const app = require('./app');
+const path = require('path');
 const dotenv = require('dotenv');
+// CARGA CRÍTICA: Debe hacerse ANTES de cualquier otro require que use el config
+dotenv.config({ path: path.join(__dirname, '../.env') });
+
+const app = require('./app');
 const config = require('./config/default');
 const { scheduleRSSImport } = require('./services/rssService');
 const pool = require('./config/database');
 const LotteryAdWorker = require('./workers/lotteryAdWorker');
 const BackupService = require('./services/backup.service');
-
-// Cargar variables de entorno con ruta absoluta corregida para Hostinger
-const path = require('path');
-dotenv.config({ path: path.join(__dirname, '../.env') });
 
 let serverAddress;
 let dbConnected = false;

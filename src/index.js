@@ -6,8 +6,9 @@ const pool = require('./config/database');
 const LotteryAdWorker = require('./workers/lotteryAdWorker');
 const BackupService = require('./services/backup.service');
 
-// Cargar variables de entorno
-dotenv.config();
+// Cargar variables de entorno con ruta absoluta corregida para Hostinger
+const path = require('path');
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 let serverAddress;
 let dbConnected = false;

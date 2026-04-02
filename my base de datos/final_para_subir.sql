@@ -1,7 +1,7 @@
 -- ======================================================
--- Base de Datos para u692901087_cdelu3
+-- Base de Datos para u692901087_api_cdelu_ar
 -- Optimizada para importación manual en MySQL/phpMyAdmin
--- Sincronizada con backup del 30-03-2026 y u692901087_cdelu3
+-- Sincronizada con backup del 30-03-2026 y u692901087_api_cdelu_ar
 -- ======================================================
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -16,8 +16,8 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 -- Estructura de base de datos
-CREATE DATABASE IF NOT EXISTS `u692901087_cdelu3`;
-USE `u692901087_cdelu3`;
+CREATE DATABASE IF NOT EXISTS `u692901087_api_cdelu_ar`;
+USE `u692901087_api_cdelu_ar`;
 
 -- ------------------------------------------------------
 -- 1. Tablas de Configuración y Sistema

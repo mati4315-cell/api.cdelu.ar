@@ -1,5 +1,7 @@
+const path = require('path');
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+// Configurar dotenv con la ruta absoluta del archivo .env en la raíz del proyecto
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 // Configuración de la conexión a la base de datos
 const config = {

@@ -118,7 +118,46 @@ module.exports = async function (fastify) {
       request.log.error({ err }, 'Error consultando Facebook Graph API');
       const empty = { isLive: false };
       cached = { at: Date.now(), data: empty };
-      return empty;
+  fastify.get('/api/v1/facebook/live-comments', {
+    schema: {
+      tags: ['Facebook Live'],
+      summary: 'Obtener comentarios del live actual',
+      description: 'Devuelve una lista de comentarios si hay un live activo',
+      querystring: {
+        type: 'object',
+        properties: {
+          mock: { type: 'string' },
+          videoId: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { mock, videoId } = request.query || {};
+      const useMock = (mock === 'true') || (config.facebook && config.facebook.mockEnabled);
+
+      if (useMock || !pageToken) {
+        return {
+          comments: [
+            { id: '1', from: { name: 'Admin' }, message: '¡Bienvenidos al vivo!', created_time: new Date().toISOString() },
+            { id: '2', from: { name: 'Vecino' }, message: 'Excelente iniciativa', created_time: new Date().toISOString() }
+          ]
+        };
+      }
+
+      if (!videoId) {
+        return { comments: [] };
+      }
+
+      const url = `https://graph.facebook.com/${graphVersion}/${videoId}/comments?access_token=${encodeURIComponent(pageToken)}`;
+      const res = await fetch(url);
+      
+      if (!res.ok) return { comments: [] };
+      const data = await res.json();
+      return { comments: data.data || [] };
+    } catch (err) {
+      request.log.error({ err }, 'Error obteniendo comentarios de Facebook');
+      return { comments: [] };
     }
   });
 };

@@ -118,6 +118,10 @@ module.exports = async function (fastify) {
       request.log.error({ err }, 'Error consultando Facebook Graph API');
       const empty = { isLive: false };
       cached = { at: Date.now(), data: empty };
+      return empty;
+    }
+  });
+
   fastify.get('/api/v1/facebook/live-comments', {
     schema: {
       tags: ['Facebook Live'],

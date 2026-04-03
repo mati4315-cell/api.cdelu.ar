@@ -91,7 +91,7 @@ async function checkEnvironmentVariables() {
     
     // Verificar variables requeridas
     for (const envVar of requiredEnvVars) {
-        if (process.env[envVar]) {
+        if (process.env[envVar] !== undefined) {
             success(`${envVar} está configurado`);
         } else {
             error(`${envVar} no está configurado`);
@@ -133,8 +133,8 @@ async function checkDatabaseConnection() {
         
         success('Conexión a la base de datos exitosa');
         return true;
-    } catch (error) {
-        error(`Error de conexión a la base de datos: ${error.message}`);
+    } catch (err) {
+        error(`Error de conexión a la base de datos: ${err.message}`);
         return false;
     }
 }
@@ -207,8 +207,8 @@ async function checkDatabaseTables() {
         
         await connection.end();
         return true;
-    } catch (error) {
-        warning(`No se pudieron verificar las tablas: ${error.message}`);
+    } catch (err) {
+        warning(`No se pudieron verificar las tablas: ${err.message}`);
         return false;
     }
 }

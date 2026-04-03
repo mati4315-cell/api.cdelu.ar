@@ -683,7 +683,8 @@ input:not(:checked) + .theme-slider .theme-icon.sun { opacity: 0; }
     }
     .main-content { 
         margin-left: 0; 
-        width: 100%;
+        width: 100% !important;
+        max-width: 100vw;
     }
     .top-bar {
         padding: 0.75rem 1rem;
@@ -692,7 +693,7 @@ input:not(:checked) + .theme-slider .theme-icon.sun { opacity: 0; }
         font-size: 1.25rem;
     }
     .content-area { 
-        padding: 1rem; 
+        padding: 0.75rem 0.5rem !important; 
     }
     .mobile-overlay {
         position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
@@ -720,13 +721,24 @@ input:not(:checked) + .theme-slider .theme-icon.sun { opacity: 0; }
         text-overflow: ellipsis;
     }
     .card-body {
-        padding: 1rem;
+        padding: 0.75rem 0.5rem !important;
     }
     .stat-card {
-        padding: 1.25rem;
+        padding: 1rem;
     }
     .stat-details h2 {
-        font-size: 1.75rem;
+        font-size: 1.5rem;
+    }
+    .news-item {
+        padding: 1rem 0.75rem !important;
+        margin-left: -0.25rem;
+        margin-right: -0.25rem;
+    }
+    .modal-card {
+        width: calc(100% - 1.5rem) !important;
+        max-width: none !important;
+        margin: 0.75rem auto;
+        padding: 1.25rem 1rem;
     }
 }
 

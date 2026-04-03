@@ -49,7 +49,7 @@ async function getFeed(request, reply) {
     if (userId) {
       query = `
         SELECT 
-          cf.id, cf.titulo, cf.descripcion, cf.resumen, cf.image_url,
+          cf.id, cf.titulo, cf.descripcion, cf.image_url,
           cf.type, cf.original_id, cf.user_id, cf.user_name,
           cf.user_profile_picture, cf.published_at, cf.created_at,
           cf.updated_at, cf.original_url, cf.is_oficial,
@@ -68,7 +68,7 @@ async function getFeed(request, reply) {
     } else {
       query = `
         SELECT 
-          cf.id, cf.titulo, cf.descripcion, cf.resumen, cf.image_url,
+          cf.id, cf.titulo, cf.descripcion, cf.image_url,
           cf.type, cf.original_id, cf.user_id, cf.user_name,
           cf.user_profile_picture, cf.published_at, cf.created_at,
           cf.updated_at, cf.original_url, cf.is_oficial,
@@ -146,7 +146,6 @@ async function getFeedItem(request, reply) {
           cf.id,
           cf.titulo,
           cf.descripcion,
-          cf.resumen,
           cf.image_url,
           cf.type,
           cf.original_id,
@@ -177,7 +176,6 @@ async function getFeedItem(request, reply) {
           cf.id,
           cf.titulo,
           cf.descripcion,
-          cf.resumen,
           cf.image_url,
           cf.type,
           cf.original_id,
@@ -295,12 +293,12 @@ async function syncFeed(request, reply) {
     // Insertar datos desde news
     const newsQuery = `
       INSERT INTO content_feed (
-        titulo, descripcion, resumen, image_url, type, original_id, 
+        titulo, descripcion, image_url, type, original_id, 
         user_id, user_name, user_profile_picture, published_at, created_at, updated_at,
         original_url, is_oficial
       )
       SELECT 
-        n.titulo, n.descripcion, n.resumen, n.image_url, 1, n.id,
+        n.titulo, n.descripcion, n.image_url, 1, n.id,
         n.created_by, u.nombre, u.profile_picture_url, n.published_at, n.created_at, n.updated_at,
         n.original_url, n.is_oficial
       FROM news n

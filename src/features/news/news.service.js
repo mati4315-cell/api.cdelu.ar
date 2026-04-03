@@ -4,7 +4,7 @@
 // Orquesta reglas de negocio, validaciones y llamadas al repositorio
 
 const repo = require('./news.repository');
-const { generateSummary, generateTitle } = require('../../services/aiService');
+const { generateTitle } = require('../../services/aiService');
 const { sanitizeBasicHtml } = require('../../utils/sanitizer');
 
 const ALLOWED_SORT_FIELDS = ['titulo', 'created_at', 'likes_count', 'comments_count', 'latest', 'oldest'];

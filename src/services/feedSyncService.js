@@ -11,7 +11,7 @@ class FeedSyncService {
     try {
       const [news] = await pool.execute(`
         SELECT 
-          n.id, n.titulo, n.descripcion, n.resumen, n.image_url, 
+          n.id, n.titulo, n.descripcion, n.image_url, 
           n.original_url, n.published_at, n.is_oficial, n.created_at, n.updated_at,
           u.id as user_id, u.username as user_name, u.profile_picture_url as user_profile_picture,
           (SELECT COUNT(*) FROM likes WHERE news_id = n.id) as likes_count,
@@ -27,12 +27,12 @@ class FeedSyncService {
       for (const item of news) {
         await pool.execute(`
           INSERT INTO content_feed 
-          (type, original_id, titulo, descripcion, resumen, image_url, video_url, 
+          (type, original_id, titulo, descripcion, image_url, video_url, 
            user_id, user_name, user_profile_picture, published_at, created_at, updated_at, 
            original_url, is_oficial, likes_count, comments_count)
-          VALUES (1, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (1, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
-          item.id, item.titulo, item.descripcion, item.resumen, item.image_url,
+          item.id, item.titulo, item.descripcion, item.image_url,
           item.user_id, item.user_name, item.user_profile_picture, item.published_at,
           item.created_at, item.updated_at, item.original_url, item.is_oficial,
           item.likes_count, item.comments_count
@@ -68,10 +68,10 @@ class FeedSyncService {
       for (const item of community) {
         await pool.execute(`
           INSERT INTO content_feed 
-          (type, original_id, titulo, descripcion, resumen, image_url, video_url, 
+          (type, original_id, titulo, descripcion, image_url, video_url, 
            user_id, user_name, user_profile_picture, published_at, created_at, updated_at, 
            original_url, is_oficial, likes_count, comments_count)
-          VALUES (2, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, NULL, FALSE, ?, ?)
+          VALUES (2, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, FALSE, ?, ?)
         `, [
           item.id, item.titulo, item.descripcion, item.image_url, item.video_url,
           item.user_id, item.user_name, item.user_profile_picture, item.created_at,
@@ -130,7 +130,7 @@ class FeedSyncService {
   async syncSingleNews(newsId) {
     const [news] = await pool.execute(`
       SELECT 
-        n.id, n.titulo, n.descripcion, n.resumen, n.image_url, 
+        n.id, n.titulo, n.descripcion, n.image_url, 
         n.original_url, n.published_at, n.is_oficial, n.created_at, n.updated_at,
         u.id as user_id, u.username as user_name, u.profile_picture_url as user_profile_picture,
         (SELECT COUNT(*) FROM likes WHERE news_id = n.id) as likes_count,
@@ -158,13 +158,13 @@ class FeedSyncService {
       // Actualizar existente
       await pool.execute(`
         UPDATE content_feed SET
-          titulo = ?, descripcion = ?, resumen = ?, image_url = ?,
+          titulo = ?, descripcion = ?, image_url = ?,
           user_id = ?, user_name = ?, user_profile_picture = ?, published_at = ?,
           updated_at = ?, original_url = ?, is_oficial = ?, 
           likes_count = ?, comments_count = ?
         WHERE type = 1 AND original_id = ?
       `, [
-        item.titulo, item.descripcion, item.resumen, item.image_url,
+        item.titulo, item.descripcion, item.image_url,
         item.user_id, item.user_name, item.user_profile_picture, item.published_at,
         item.updated_at, item.original_url, item.is_oficial,
         item.likes_count, item.comments_count, newsId
@@ -173,12 +173,12 @@ class FeedSyncService {
       // Insertar nuevo
       await pool.execute(`
         INSERT INTO content_feed 
-        (type, original_id, titulo, descripcion, resumen, image_url, video_url, 
+        (type, original_id, titulo, descripcion, image_url, video_url, 
          user_id, user_name, user_profile_picture, published_at, created_at, updated_at, 
          original_url, is_oficial, likes_count, comments_count)
-        VALUES (1, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (1, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
-        item.id, item.titulo, item.descripcion, item.resumen, item.image_url,
+        item.id, item.titulo, item.descripcion, item.image_url,
         item.user_id, item.user_name, item.user_profile_picture, item.published_at,
         item.created_at, item.updated_at, item.original_url, item.is_oficial,
         item.likes_count, item.comments_count
@@ -233,10 +233,10 @@ class FeedSyncService {
       // Insertar nuevo
       await pool.execute(`
         INSERT INTO content_feed 
-        (type, original_id, titulo, descripcion, resumen, image_url, video_url, 
+        (type, original_id, titulo, descripcion, image_url, video_url, 
          user_id, user_name, user_profile_picture, published_at, created_at, updated_at, 
          original_url, is_oficial, likes_count, comments_count)
-        VALUES (2, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, NULL, FALSE, ?, ?)
+        VALUES (2, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, FALSE, ?, ?)
       `, [
         item.id, item.titulo, item.descripcion, item.image_url, item.video_url,
         item.user_id, item.user_name, item.user_profile_picture, item.created_at,

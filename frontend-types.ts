@@ -45,9 +45,7 @@ export interface FeedItem {
   /** Descripción/contenido principal */
   descripcion: string;
   
-  /** Resumen (solo para noticias) */
-  resumen?: string;
-  
+
   /** URL de imagen asociada */
   image_url?: string;
   

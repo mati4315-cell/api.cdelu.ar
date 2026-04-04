@@ -177,8 +177,7 @@ async function adminRoutes(fastify, options) {
               type: 'object',
               properties: {
                 purged_at: { type: 'string' },
-                cache_size_before: { type: 'string' },
-                cache_size_after: { type: 'string' }
+                feed_keys_cleared: { type: 'integer' }
               }
             }
           }
@@ -187,16 +186,17 @@ async function adminRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     try {
-      // Simular purga de caché
+      // Purga real de caché en el backend
+      const { flushFeedCache } = require('../controllers/feedController');
+      const stats = flushFeedCache();
       const purgedAt = new Date().toISOString();
       
       reply.send({
         success: true,
-        message: 'Caché purgada exitosamente',
+        message: 'Caché del backend purgada exitosamente',
         data: {
           purged_at: purgedAt,
-          cache_size_before: '2.5 MB',
-          cache_size_after: '0 MB'
+          feed_keys_cleared: stats ? stats.keys : 0
         }
       });
     } catch (error) {

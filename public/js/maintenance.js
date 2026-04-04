@@ -62,8 +62,22 @@ window.clearLogs = function() {
 };
 
 window.purgeCache = function() {
-    if (confirm('¿Estás seguro de que quieres purgar la caché del sistema? Esto puede afectar temporalmente el rendimiento.')) {
-        apiAction('/admin/purge-cache', 'POST', 'Caché purgada exitosamente', 'Error al purgar la caché');
+    if (confirm('¿Estás seguro de que quieres purgar la caché del sistema y el navegador? Esto afectará todos los visitantes.')) {
+        // 1. Purgar estado local
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // 2. Limpiar Service Workers si existen (ej. PWA Cache)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.update();
+                }
+            });
+        }
+        
+        // 3. Purgar backend (NodeCache)
+        apiAction('/admin/purge-cache', 'POST', 'Caché purgada exitosamente. Recarga la página.', 'Error al purgar la caché backend');
     }
 };
 

@@ -1,4 +1,8 @@
 const pool = require('../config/database');
+const NodeCache = require('node-cache');
+
+// Caché en memoria para el API (TTL 60 segundos) simulando Redis
+const feedCache = new NodeCache({ stdTTL: 60, checkperiod: 120 });
 
 /**
  * Obtener contenido del feed principal con paginación y filtros
@@ -19,6 +23,14 @@ async function getFeed(request, reply) {
 
     const offset = (page - 1) * limit;
     const userId = request.user ? request.user.id : null; // Usuario actual si está autenticado
+    
+    // Generar clave de caché para la solicitud pública
+    const cacheKey = `feed_${page}_${limit}_${type || 'all'}_${excludeId || 'none'}_${sort}_${order}`;
+    
+    // Si NO hay usuario (es público) y tenemos el feed en caché, lo servimos de inmediato
+    if (!userId && feedCache.has(cacheKey)) {
+      return reply.send(feedCache.get(cacheKey));
+    }
     
     // Validar parámetros de ordenación
     const validSortFields = ['titulo', 'published_at', 'created_at', 'likes_count', 'comments_count'];
@@ -117,7 +129,7 @@ async function getFeed(request, reply) {
       }
     }
 
-    return reply.send({
+    const responsePayload = {
       data: formattedRows,
       pagination: {
         total,
@@ -125,7 +137,14 @@ async function getFeed(request, reply) {
         limit: parseInt(limit),
         totalPages: Math.ceil(total / limit) || 1
       }
-    });
+    };
+
+    // Si la lectura es pública, guardar en el caché (60 segundos)
+    if (!userId) {
+      feedCache.set(cacheKey, responsePayload);
+    }
+    
+    return reply.send(responsePayload);
 
   } catch (error) {
     request.log.error(error);
@@ -432,9 +451,20 @@ function mixAdsWithContent(content, ads) {
   return mixedContent;
 }
 
+const flushFeedCache = () => {
+  if (feedCache) {
+    const stats = feedCache.getStats();
+    feedCache.flushAll();
+    return stats;
+  }
+  return null;
+};
+
 module.exports = {
   getFeed,
   getFeedItem,
   getFeedStats,
-  syncFeed
-}; 
+  syncFeed,
+  mixAdsWithContent, // Para testing
+  flushFeedCache
+};

@@ -17,14 +17,9 @@ async function fetchNewsList(limit, offset, orderByClause) {
   const [rows] = await pool.query(
     `SELECT 
        n.*,
-       u.nombre as autor,
-       COUNT(DISTINCT l.id) as likes_count,
-       COUNT(DISTINCT c.id) as comments_count
+       u.nombre as autor
      FROM news n
      LEFT JOIN users u ON n.created_by = u.id
-     LEFT JOIN likes l ON n.id = l.news_id
-     LEFT JOIN comments c ON n.id = c.news_id
-     GROUP BY n.id
      ${orderByClause}
      LIMIT ? OFFSET ?`,
     [limit, offset]

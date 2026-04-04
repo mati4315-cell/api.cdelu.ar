@@ -19,6 +19,10 @@ const profileRoutes = require('./routes/profile.routes.js');
 const usersRepository = require('./features/users/users.repository');
 const { authenticate, authorize } = require('./middlewares/auth');
 
+// Optimización: Compresión y ETags
+fastify.register(require('@fastify/compress'), { global: true });
+fastify.register(require('@fastify/etag'));
+
 // Registrar plugins
 // Seguridad básica HTTP headers (relajar políticas para permitir imágenes cross-origin en dev)
 fastify.register(require('@fastify/helmet'), {

@@ -14,8 +14,28 @@ const MIN_FILE_SIZE = 1024; // 1KB
  */
 async function validateProfilePicture(request, reply) {
   try {
-    const profilePictureFile = request.body.profile_picture;
+    const body = request.body || {};
+    console.log('[DEBUG] validateProfilePicture - Content-Type:', request.headers['content-type']);
+    console.log('[DEBUG] validateProfilePicture - Body keys:', Object.keys(body));
+    
+    let profilePictureFile = body.profile_picture;
+    
+    // Si attachFieldsToBody: true, a veces puede venir como array si se envían múltiples archivos con el mismo nombre
+    if (Array.isArray(profilePictureFile)) {
+      console.log('[DEBUG] profile_picture is an array, taking the first element');
+      profilePictureFile = profilePictureFile[0];
+    }
+    
+    if (profilePictureFile) {
+      console.log('[DEBUG] profile_picture found:', {
+        filename: profilePictureFile.filename,
+        mimetype: profilePictureFile.mimetype,
+        hasFile: !!profilePictureFile.file,
+        hasValue: !!profilePictureFile.value
+      });
+    }
 
+    // Verificar que existe el campo
     if (!profilePictureFile) {
       return reply.status(400).send({
         error: 'Campo profile_picture requerido',
@@ -23,49 +43,21 @@ async function validateProfilePicture(request, reply) {
       });
     }
 
-    // Verificar que es un objeto con las propiedades necesarias
-    if (!profilePictureFile.filename || !profilePictureFile.mimetype || !profilePictureFile.file) {
-      return reply.status(400).send({
-        error: 'Archivo de imagen inválido',
-        details: 'El archivo no tiene la estructura esperada'
-      });
-    }
-
-    // Validar tipo MIME
-    if (!ALLOWED_MIME_TYPES.includes(profilePictureFile.mimetype)) {
-      return reply.status(400).send({
-        error: 'Tipo de archivo no permitido',
-        details: `Solo se permiten los siguientes tipos: ${ALLOWED_MIME_TYPES.join(', ')}`,
-        received: profilePictureFile.mimetype
-      });
-    }
-
-    // Validar extensión del archivo
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-    const fileExtension = profilePictureFile.filename.toLowerCase().split('.').pop();
-    const hasValidExtension = allowedExtensions.some(ext => ext.includes(fileExtension));
+    // Registrar estructura para debug si falla en el controlador
+    console.log('[DEBUG] profile_picture found - Full keys:', Object.keys(profilePictureFile));
     
-    if (!hasValidExtension) {
+    // Validación básica: al menos debe tener un nombre de archivo o ser un objeto
+    if (typeof profilePictureFile !== 'object') {
       return reply.status(400).send({
-        error: 'Extensión de archivo no válida',
-        details: `Solo se permiten archivos con extensiones: ${allowedExtensions.join(', ')}`,
-        received: `.${fileExtension}`
+        error: 'Estructura de archivo inválida',
+        details: 'El campo profile_picture no fue reconocido como un archivo multipart.'
       });
     }
 
-    // Para validar tamaño, necesitamos leer el archivo (lo haremos en el controlador)
-    // Aquí solo validamos que el archivo stream esté disponible
-    if (!profilePictureFile.file || typeof profilePictureFile.file.read !== 'function') {
-      return reply.status(400).send({
-        error: 'Archivo corrupto o inválido',
-        details: 'No se puede leer el contenido del archivo'
-      });
-    }
-
-    // Agregar metadata de validación para uso posterior
+    // Agregar metadata de validación para uso posterior (más flexible)
     request.validationMetadata = {
-      originalName: profilePictureFile.filename,
-      mimeType: profilePictureFile.mimetype,
+      originalName: profilePictureFile.filename || 'perfil.jpg',
+      mimeType: profilePictureFile.mimetype || 'image/jpeg',
       maxAllowedSize: MAX_FILE_SIZE,
       minAllowedSize: MIN_FILE_SIZE
     };

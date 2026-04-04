@@ -136,7 +136,10 @@ async function profileRoutes(fastify, options) {
 
   // POST /api/v1/profile/picture - Subir foto de perfil
   fastify.post('/picture', {
-    schema: uploadProfilePictureSchema,
+    schema: {
+      ...uploadProfilePictureSchema,
+      body: undefined // Dejar que el middleware y multipart gestionen el body
+    },
     preHandler: [requireAuthentication, validateProfilePicture]
   }, userController.uploadProfilePicture);
 

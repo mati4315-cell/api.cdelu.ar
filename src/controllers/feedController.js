@@ -11,6 +11,7 @@ async function getFeed(request, reply) {
       page = 1, 
       limit = 10, 
       type, 
+      excludeId,
       sort = 'published_at', 
       order = 'desc',
       includeAds = false // Nuevo parámetro para incluir publicidad
@@ -26,14 +27,23 @@ async function getFeed(request, reply) {
     const sortField = validSortFields.includes(sort) ? sort : 'published_at';
     const orderType = validOrderTypes.includes(order) ? order : 'desc';
 
-    // Construir condición WHERE para filtrar por tipo
-    let whereCondition = '';
+    // Construir condición WHERE para filtrar por tipo y excluir ID
+    let whereConditions = [];
     let queryParams = [];
     
     if (type) {
-      whereCondition = 'WHERE type = ?';
+      whereConditions.push('type = ?');
       queryParams.push(parseInt(type));
     }
+
+    if (excludeId) {
+      whereConditions.push('id != ?');
+      queryParams.push(parseInt(excludeId));
+    }
+
+    const whereCondition = whereConditions.length > 0 
+      ? `WHERE ${whereConditions.join(' AND ')}` 
+      : '';
 
     // Definir query para contar total de registros
     const totalQuery = `SELECT COUNT(*) as total FROM content_feed ${whereCondition}`;
@@ -287,37 +297,66 @@ async function getFeedStats(request, reply) {
  */
 async function syncFeed(request, reply) {
   try {
+    // Asegurar que las tablas de comunidad existan para evitar errores en el sync
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS com_likes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        com_id INT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_com (user_id, com_id),
+        INDEX idx_user_id (user_id),
+        INDEX idx_com_id (com_id)
+      )
+    `);
+
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS com_comments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        com_id INT NOT NULL,
+        content TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_user_id (user_id),
+        INDEX idx_com_id (com_id)
+      )
+    `);
+
     // Limpiar la tabla
     await pool.execute('DELETE FROM content_feed');
 
-    // Insertar datos desde news
+    // Insertar datos desde news con conteos
     const newsQuery = `
       INSERT INTO content_feed (
         titulo, descripcion, image_url, type, original_id, 
         user_id, user_name, user_profile_picture, published_at, created_at, updated_at,
-        original_url, is_oficial
+        original_url, is_oficial, likes_count, comments_count
       )
       SELECT 
         n.titulo, n.descripcion, n.image_url, 1, n.id,
         n.created_by, u.nombre, u.profile_picture_url, n.published_at, n.created_at, n.updated_at,
-        n.original_url, n.is_oficial
+        n.original_url, n.is_oficial,
+        (SELECT COUNT(*) FROM likes WHERE news_id = n.id) as likes_count,
+        (SELECT COUNT(*) FROM comments WHERE news_id = n.id) as comments_count
       FROM news n
       LEFT JOIN users u ON n.created_by = u.id
     `;
 
     await pool.execute(newsQuery);
 
-    // Insertar datos desde com
+    // Insertar datos desde com con conteos
     const comQuery = `
       INSERT INTO content_feed (
         titulo, descripcion, image_url, type, original_id,
         user_id, user_name, user_profile_picture, published_at, created_at, updated_at,
-        video_url
+        video_url, likes_count, comments_count
       )
       SELECT 
         c.titulo, c.descripcion, c.image_url, 2, c.id,
         c.user_id, u.nombre, u.profile_picture_url, c.created_at, c.created_at, c.updated_at,
-        c.video_url
+        c.video_url,
+        (SELECT COUNT(*) FROM com_likes WHERE com_id = c.id) as likes_count,
+        (SELECT COUNT(*) FROM com_comments WHERE com_id = c.id) as comments_count
       FROM com c
       LEFT JOIN users u ON c.user_id = u.id
     `;

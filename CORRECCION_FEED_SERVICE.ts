@@ -37,6 +37,14 @@ export class FeedService {
     return await this.request.get(`/feed/${id}`);
   }
 
+  /**
+   * Obtiene un elemento del feed usando su ID original (news_id o com_id)
+   * Útil para cuando vienes de una URL como /noticia/:id
+   */
+  async getFeedItemByOriginalId(type: number, originalId: number): Promise<FeedItem> {
+    return await this.request.get(`/feed/by-original-id/${type}/${originalId}`);
+  }
+
   async createComment(feedId: number, comment: { content: string }): Promise<any> {
     return await this.request.post(`/feed/${feedId}/comments`, comment);
   }

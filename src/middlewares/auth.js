@@ -47,8 +47,22 @@ async function authenticateApiKey(request, reply) {
   }
 }
 
+/**
+ * Middleware de autenticación opcional
+ * @param {Object} request - Objeto de solicitud Fastify
+ * @param {Object} reply - Objeto de respuesta Fastify
+ */
+async function optionalAuthenticate(request, reply) {
+  try {
+    await request.jwtVerify();
+  } catch (err) {
+    // El usuario no está autenticado, no hacemos nada
+  }
+}
+
 module.exports = {
   authenticate,
+  optionalAuthenticate,
   authorize,
   authenticateApiKey
 }; 

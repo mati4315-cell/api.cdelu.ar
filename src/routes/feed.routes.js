@@ -1,5 +1,5 @@
 const { getFeed, getFeedItem, getFeedStats, syncFeed } = require('../controllers/feedController');
-const { authenticate, authorize } = require('../middlewares/auth');
+const { authenticate, optionalAuthenticate, authorize } = require('../middlewares/auth');
 
 /**
  * Esquemas de validación para las rutas del feed
@@ -12,6 +12,7 @@ const schemas = {
       page: { type: 'integer', minimum: 1, default: 1, description: 'Número de página' },
       limit: { type: 'integer', minimum: 1, maximum: 100, default: 10, description: 'Cantidad de elementos por página' },
       type: { type: 'integer', enum: [1, 2], description: 'Tipo de contenido: 1=noticias, 2=comunidad' },
+      excludeId: { type: 'integer', description: 'ID del feed a excluir (para evitar duplicados)' },
       sort: { 
         type: 'string', 
         enum: ['titulo', 'published_at', 'created_at', 'likes_count', 'comments_count'], 
@@ -29,7 +30,6 @@ const schemas = {
       id: { type: 'integer' },
       titulo: { type: 'string' },
       descripcion: { type: 'string' },
-      resumen: { type: 'string', nullable: true },
       image_url: { type: 'string', nullable: true },
       type: { type: 'integer', enum: [1, 2] },
       original_id: { type: 'integer' },
@@ -60,7 +60,6 @@ const schemas = {
             id: { type: 'integer' },
             titulo: { type: 'string' },
             descripcion: { type: 'string' },
-            resumen: { type: 'string', nullable: true },
             image_url: { type: 'string', nullable: true },
             type: { type: 'integer', enum: [1, 2] },
             original_id: { type: 'integer' },
@@ -99,130 +98,24 @@ const schemas = {
  */
 async function feedRoutes(fastify, options) {
   
-  // Ruta principal del feed - Pestaña "Todo" (todos los tipos de contenido)
-  fastify.get('/api/v1/feed', {
-    schema: {
-      tags: ['Feed'],
-      summary: 'Obtener todo el contenido del feed (noticias y comunidad)',
-      description: 'Endpoint público para obtener todos los tipos de contenido con paginación y filtros. Pestaña "Todo".',
-      querystring: schemas.feedQuerySchema,
-      response: {
-        200: {
-          description: 'Contenido del feed obtenido exitosamente',
-          ...schemas.feedListSchema
-        }
-      }
-    }
-  }, getFeed);
+  // ==========================================
+  // RUTAS ESPECÍFICAS (DEFINIR ANTES QUE DINÁMICAS)
+  // ==========================================
 
-  // Ruta para la pestaña "Noticias" (type = 1)
-  fastify.get('/api/v1/feed/noticias', {
+  // Obtener un elemento del feed por tipo y ID original (Mapeador de IDs)
+  fastify.get('/api/v1/feed/by-original-id/:type/:originalId', {
+    onRequest: [optionalAuthenticate],
     schema: {
       tags: ['Feed'],
-      summary: 'Obtener solo noticias del feed',
-      description: 'Endpoint público para obtener solo las noticias con paginación y filtros. Pestaña "Noticias".',
-      querystring: {
-        type: 'object',
-        properties: {
-          page: { type: 'integer', minimum: 1, default: 1, description: 'Número de página' },
-          limit: { type: 'integer', minimum: 1, maximum: 100, default: 10, description: 'Cantidad de elementos por página' },
-          sort: { 
-            type: 'string', 
-            enum: ['titulo', 'published_at', 'created_at', 'likes_count', 'comments_count'], 
-            default: 'published_at', 
-            description: 'Campo de ordenación' 
-          },
-          order: { type: 'string', enum: ['asc', 'desc'], default: 'desc', description: 'Dirección de ordenación' }
-        }
-      },
-      response: {
-        200: {
-          description: 'Noticias del feed obtenidas exitosamente',
-          ...schemas.feedListSchema
-        }
-      }
-    }
-  }, async (request, reply) => {
-    // Forzar type = 1 para noticias
-    request.query.type = 1;
-    return getFeed(request, reply);
-  });
-
-  // Ruta para la pestaña "Comunidad" (type = 2)
-  fastify.get('/api/v1/feed/comunidad', {
-    schema: {
-      tags: ['Feed'],
-      summary: 'Obtener solo contenido de comunidad del feed',
-      description: 'Endpoint público para obtener solo el contenido de comunidad con paginación y filtros. Pestaña "Comunidad".',
-      querystring: {
-        type: 'object',
-        properties: {
-          page: { type: 'integer', minimum: 1, default: 1, description: 'Número de página' },
-          limit: { type: 'integer', minimum: 1, maximum: 100, default: 10, description: 'Cantidad de elementos por página' },
-          sort: { 
-            type: 'string', 
-            enum: ['titulo', 'published_at', 'created_at', 'likes_count', 'comments_count'], 
-            default: 'published_at', 
-            description: 'Campo de ordenación' 
-          },
-          order: { type: 'string', enum: ['asc', 'desc'], default: 'desc', description: 'Dirección de ordenación' }
-        }
-      },
-      response: {
-        200: {
-          description: 'Contenido de comunidad del feed obtenido exitosamente',
-          ...schemas.feedListSchema
-        }
-      }
-    }
-  }, async (request, reply) => {
-    // Forzar type = 2 para comunidad
-    request.query.type = 2;
-    return getFeed(request, reply);
-  });
-
-  // Obtener un elemento específico del feed por ID
-  fastify.get('/api/v1/feed/:type/:id', {
-    schema: {
-      tags: ['Feed'],
-      summary: 'Obtener elemento específico del feed',
-      description: 'Endpoint público para obtener un elemento específico del feed por tipo e ID.',
+      summary: 'Obtener elemento del feed por tipo e ID original',
+      description: 'Endpoint para obtener un elemento del feed usando el ID original (news_id o com_id).',
       params: {
         type: 'object',
         properties: {
           type: { type: 'integer', enum: [1, 2], description: 'Tipo de contenido: 1=noticia, 2=comunidad' },
-          id: { type: 'integer', minimum: 1, description: 'ID del elemento en el feed' }
+          originalId: { type: 'integer', minimum: 1, description: 'ID original del contenido' }
         },
-        required: ['type', 'id']
-      },
-      response: {
-        200: {
-          description: 'Elemento del feed encontrado',
-          ...schemas.feedItemSchema
-        },
-        404: {
-          description: 'Elemento no encontrado',
-          type: 'object',
-          properties: {
-            error: { type: 'string' }
-          }
-        }
-      }
-    }
-  }, getFeedItem);
-
-  // Obtener un elemento específico del feed por ID solamente
-  fastify.get('/api/v1/feed/:id', {
-    schema: {
-      tags: ['Feed'],
-      summary: 'Obtener elemento específico del feed por ID',
-      description: 'Endpoint público para obtener un elemento específico del feed solo por ID.',
-      params: {
-        type: 'object',
-        properties: {
-          id: { type: 'integer', minimum: 1, description: 'ID del elemento en el feed' }
-        },
-        required: ['id']
+        required: ['type', 'originalId']
       },
       response: {
         200: {
@@ -240,7 +133,7 @@ async function feedRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     const pool = require('../config/database');
-    const { id } = request.params;
+    const { type, originalId } = request.params;
     const userId = request.user ? request.user.id : null;
 
     try {
@@ -248,69 +141,41 @@ async function feedRoutes(fastify, options) {
       const queryParams = [];
       
       if (userId) {
-        // Si hay usuario autenticado, verificar likes
         query = `
           SELECT 
-            cf.id,
-            cf.titulo,
-            cf.descripcion,
-            cf.resumen,
-            cf.image_url,
-            cf.type,
-            cf.original_id,
-            cf.user_id,
-            cf.user_name,
-            cf.published_at,
-            cf.created_at,
-            cf.updated_at,
-            cf.original_url,
-            cf.is_oficial,
-            cf.video_url,
-            cf.likes_count,
-            cf.comments_count,
+            cf.id, cf.titulo, cf.descripcion, cf.image_url,
+            cf.type, cf.original_id, cf.user_id, cf.user_name,
+            cf.user_profile_picture, cf.published_at, cf.created_at,
+            cf.updated_at, cf.original_url, cf.is_oficial,
+            cf.video_url, cf.likes_count, cf.comments_count,
             CASE 
               WHEN cf.type = 1 AND EXISTS(SELECT 1 FROM likes WHERE user_id = ? AND news_id = cf.original_id) THEN 1
               WHEN cf.type = 2 AND EXISTS(SELECT 1 FROM com_likes WHERE user_id = ? AND com_id = cf.original_id) THEN 1
               ELSE 0 
             END as is_liked
           FROM content_feed cf
-          WHERE cf.id = ?
+          WHERE cf.type = ? AND cf.original_id = ?
         `;
-        queryParams.push(userId, userId, parseInt(id));
+        queryParams.push(userId, userId, parseInt(type), parseInt(originalId));
       } else {
-        // Si no hay usuario, is_liked siempre es false
         query = `
           SELECT 
-            cf.id,
-            cf.titulo,
-            cf.descripcion,
-            cf.resumen,
-            cf.image_url,
-            cf.type,
-            cf.original_id,
-            cf.user_id,
-            cf.user_name,
-            cf.published_at,
-            cf.created_at,
-            cf.updated_at,
-            cf.original_url,
-            cf.is_oficial,
-            cf.video_url,
-            cf.likes_count,
-            cf.comments_count,
+            cf.id, cf.titulo, cf.descripcion, cf.image_url,
+            cf.type, cf.original_id, cf.user_id, cf.user_name,
+            cf.user_profile_picture, cf.published_at, cf.created_at,
+            cf.updated_at, cf.original_url, cf.is_oficial,
+            cf.video_url, cf.likes_count, cf.comments_count,
             0 as is_liked
           FROM content_feed cf
-          WHERE cf.id = ?
+          WHERE cf.type = ? AND cf.original_id = ?
         `;
-        queryParams.push(parseInt(id));
+        queryParams.push(parseInt(type), parseInt(originalId));
       }
 
       const [rows] = await pool.execute(query, queryParams);
 
       if (rows.length === 0) {
-        return reply.status(404).send({
-          error: 'Contenido no encontrado'
-        });
+        return reply.status(404).send({ error: 'Contenido no encontrado' });
       }
 
       const formattedItem = {
@@ -326,6 +191,54 @@ async function feedRoutes(fastify, options) {
         error: 'Error interno del servidor',
         message: error.message
       });
+    }
+  });
+
+  // IDs del feed que el usuario actual ha likeado
+  fastify.get('/api/v1/feed/likes/my', {
+    onRequest: [authenticate],
+    schema: {
+      tags: ['Feed'],
+      summary: 'Obtener IDs del feed likeados por el usuario actual',
+      description: 'Devuelve una lista de content_feed.id que el usuario actual tiene con like. Para type=3 no devuelve IDs.',
+      security: [{ bearerAuth: [] }],
+      response: {
+        200: {
+          description: 'Lista de IDs likeados',
+          type: 'object',
+          properties: {
+            likedIds: {
+              type: 'array',
+              items: { type: 'integer' }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const pool = require('../config/database');
+    const userId = request.user.id;
+    try {
+      const [rows] = await pool.query(
+        `SELECT cf.id
+         FROM content_feed cf
+         WHERE (
+           cf.type = 1 AND EXISTS (
+             SELECT 1 FROM likes l WHERE l.user_id = ? AND l.news_id = cf.original_id
+           )
+         ) OR (
+           cf.type = 2 AND EXISTS (
+             SELECT 1 FROM com_likes cl WHERE cl.user_id = ? AND cl.com_id = cf.original_id
+           )
+         )`,
+        [userId, userId]
+      );
+
+      const likedIds = rows.map((r) => r.id);
+      return reply.send({ likedIds });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Error al obtener los IDs likeados' });
     }
   });
 
@@ -373,14 +286,12 @@ async function feedRoutes(fastify, options) {
     }
 
     try {
-      // Obtener tipo y original_id por cada feedId
       const placeholders = feedIds.map(() => '?').join(',');
       const [feedRows] = await pool.query(
         `SELECT id, type, original_id FROM content_feed WHERE id IN (${placeholders})`,
         feedIds
       );
 
-      // Inicializar en false por defecto
       const statuses = {};
       for (const id of feedIds) {
         statuses[id] = false;
@@ -390,16 +301,13 @@ async function feedRoutes(fastify, options) {
         return reply.send({ statuses });
       }
 
-      // Separar por tipo y mapear original → feedId
-      const type1Map = new Map(); // news_id → feedId
-      const type2Map = new Map(); // com_id → feedId
+      const type1Map = new Map();
+      const type2Map = new Map();
       for (const row of feedRows) {
         if (row.type === 1) type1Map.set(row.original_id, row.id);
         else if (row.type === 2) type2Map.set(row.original_id, row.id);
-        // type 3 queda en false
       }
 
-      // Consultar likes para type=1 (noticias)
       const type1Ids = Array.from(type1Map.keys());
       if (type1Ids.length > 0) {
         const ph = type1Ids.map(() => '?').join(',');
@@ -413,21 +321,8 @@ async function feedRoutes(fastify, options) {
         }
       }
 
-      // Asegurar tabla com_likes y consultar para type=2 (comunidad)
       const type2Ids = Array.from(type2Map.keys());
       if (type2Ids.length > 0) {
-        await pool.query(`
-          CREATE TABLE IF NOT EXISTS com_likes (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            com_id INT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY unique_user_com (user_id, com_id),
-            INDEX idx_user_id (user_id),
-            INDEX idx_com_id (com_id)
-          )
-        `);
-
         const ph = type2Ids.map(() => '?').join(',');
         const [likedCom] = await pool.query(
           `SELECT com_id FROM com_likes WHERE user_id = ? AND com_id IN (${ph})`,
@@ -446,66 +341,247 @@ async function feedRoutes(fastify, options) {
     }
   });
 
-  // IDs del feed que el usuario actual ha likeado
-  fastify.get('/api/v1/feed/likes/my', {
-    onRequest: [authenticate],
+
+  // ==========================================
+  // RUTAS DINÁMICAS (ORDEN IMPORTANTE)
+  // ==========================================
+
+  // Ruta principal del feed - Pestaña "Todo" (todos los tipos de contenido)
+  fastify.get('/api/v1/feed', {
+    onRequest: [optionalAuthenticate],
     schema: {
       tags: ['Feed'],
-      summary: 'Obtener IDs del feed likeados por el usuario actual',
-      description: 'Devuelve una lista de content_feed.id que el usuario actual tiene con like. Para type=3 no devuelve IDs.',
-      security: [{ bearerAuth: [] }],
+      summary: 'Obtener todo el contenido del feed (noticias y comunidad)',
+      description: 'Endpoint público para obtener todos los tipos de contenido con paginación y filtros. Pestaña "Todo".',
+      querystring: schemas.feedQuerySchema,
       response: {
         200: {
-          description: 'Lista de IDs likeados',
+          description: 'Contenido del feed obtenido exitosamente',
+          ...schemas.feedListSchema
+        }
+      }
+    }
+  }, getFeed);
+
+  // Ruta para la pestaña "Noticias" (type = 1)
+  fastify.get('/api/v1/feed/noticias', {
+    onRequest: [optionalAuthenticate],
+    schema: {
+      tags: ['Feed'],
+      summary: 'Obtener solo noticias del feed',
+      description: 'Endpoint público para obtener solo las noticias con paginación y filtros. Pestaña "Noticias".',
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer', minimum: 1, default: 1, description: 'Número de página' },
+          limit: { type: 'integer', minimum: 1, maximum: 100, default: 10, description: 'Cantidad de elementos por página' },
+          excludeId: { type: 'integer', description: 'ID del feed a excluir' },
+          sort: { 
+            type: 'string', 
+            enum: ['titulo', 'published_at', 'created_at', 'likes_count', 'comments_count'], 
+            default: 'published_at', 
+            description: 'Campo de ordenación' 
+          },
+          order: { type: 'string', enum: ['asc', 'desc'], default: 'desc', description: 'Dirección de ordenación' }
+        }
+      },
+      response: {
+        200: {
+          description: 'Noticias del feed obtenidas exitosamente',
+          ...schemas.feedListSchema
+        }
+      }
+    }
+  }, async (request, reply) => {
+    // Forzar type = 1 para noticias
+    request.query.type = 1;
+    return getFeed(request, reply);
+  });
+
+  // Ruta para la pestaña "Comunidad" (type = 2)
+  fastify.get('/api/v1/feed/comunidad', {
+    onRequest: [optionalAuthenticate],
+    schema: {
+      tags: ['Feed'],
+      summary: 'Obtener solo contenido de comunidad del feed',
+      description: 'Endpoint público para obtener solo el contenido de comunidad con paginación y filtros. Pestaña "Comunidad".',
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer', minimum: 1, default: 1, description: 'Número de página' },
+          limit: { type: 'integer', minimum: 1, maximum: 100, default: 10, description: 'Cantidad de elementos por página' },
+          excludeId: { type: 'integer', description: 'ID del feed a excluir' },
+          sort: { 
+            type: 'string', 
+            enum: ['titulo', 'published_at', 'created_at', 'likes_count', 'comments_count'], 
+            default: 'published_at', 
+            description: 'Campo de ordenación' 
+          },
+          order: { type: 'string', enum: ['asc', 'desc'], default: 'desc', description: 'Dirección de ordenación' }
+        }
+      },
+      response: {
+        200: {
+          description: 'Contenido de comunidad del feed obtenido exitosamente',
+          ...schemas.feedListSchema
+        }
+      }
+    }
+  }, async (request, reply) => {
+    // Forzar type = 2 para comunidad
+    request.query.type = 2;
+    return getFeed(request, reply);
+  });
+
+  // Obtener un elemento específico del feed por ID
+  fastify.get('/api/v1/feed/:type/:id', {
+    onRequest: [optionalAuthenticate],
+    schema: {
+      tags: ['Feed'],
+      summary: 'Obtener elemento específico del feed',
+      description: 'Endpoint público para obtener un elemento específico del feed por tipo e ID.',
+      params: {
+        type: 'object',
+        properties: {
+          type: { type: 'integer', enum: [1, 2], description: 'Tipo de contenido: 1=noticia, 2=comunidad' },
+          id: { type: 'integer', minimum: 1, description: 'ID del elemento en el feed' }
+        },
+        required: ['type', 'id']
+      },
+      response: {
+        200: {
+          description: 'Elemento del feed encontrado',
+          ...schemas.feedItemSchema
+        },
+        404: {
+          description: 'Elemento no encontrado',
           type: 'object',
           properties: {
-            likedIds: {
-              type: 'array',
-              items: { type: 'integer' }
-            }
+            error: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, getFeedItem);
+
+  // Obtener un elemento específico del feed por ID solamente
+  fastify.get('/api/v1/feed/:id', {
+    onRequest: [optionalAuthenticate],
+    schema: {
+      tags: ['Feed'],
+      summary: 'Obtener elemento específico del feed por ID',
+      description: 'Endpoint público para obtener un elemento específico del feed solo por ID.',
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer', minimum: 1, description: 'ID del elemento en el feed' }
+        },
+        required: ['id']
+      },
+      response: {
+        200: {
+          description: 'Elemento del feed encontrado',
+          ...schemas.feedItemSchema
+        },
+        404: {
+          description: 'Elemento no encontrado',
+          type: 'object',
+          properties: {
+            error: { type: 'string' }
           }
         }
       }
     }
   }, async (request, reply) => {
     const pool = require('../config/database');
-    const userId = request.user.id;
+    const { id } = request.params;
+    const userId = request.user ? request.user.id : null;
+
     try {
-      // Asegurar existencia de com_likes para evitar errores en SELECT
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS com_likes (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          com_id INT NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE KEY unique_user_com (user_id, com_id),
-          INDEX idx_user_id (user_id),
-          INDEX idx_com_id (com_id)
-        )
-      `);
+      let query;
+      const queryParams = [];
+      
+      if (userId) {
+        // Si hay usuario autenticado, verificar likes
+        query = `
+          SELECT 
+            cf.id,
+            cf.titulo,
+            cf.descripcion,
+            cf.image_url,
+            cf.type,
+            cf.original_id,
+            cf.user_id,
+            cf.user_name,
+            cf.published_at,
+            cf.created_at,
+            cf.updated_at,
+            cf.original_url,
+            cf.is_oficial,
+            cf.video_url,
+            cf.likes_count,
+            cf.comments_count,
+            CASE 
+              WHEN cf.type = 1 AND EXISTS(SELECT 1 FROM likes WHERE user_id = ? AND news_id = cf.original_id) THEN 1
+              WHEN cf.type = 2 AND EXISTS(SELECT 1 FROM com_likes WHERE user_id = ? AND com_id = cf.original_id) THEN 1
+              ELSE 0 
+            END as is_liked
+          FROM content_feed cf
+          WHERE cf.id = ?
+        `;
+        queryParams.push(userId, userId, parseInt(id));
+      } else {
+        // Si no hay usuario, is_liked siempre es false
+        query = `
+          SELECT 
+            cf.id,
+            cf.titulo,
+            cf.descripcion,
+            cf.image_url,
+            cf.type,
+            cf.original_id,
+            cf.user_id,
+            cf.user_name,
+            cf.published_at,
+            cf.created_at,
+            cf.updated_at,
+            cf.original_url,
+            cf.is_oficial,
+            cf.video_url,
+            cf.likes_count,
+            cf.comments_count,
+            0 as is_liked
+          FROM content_feed cf
+          WHERE cf.id = ?
+        `;
+        queryParams.push(parseInt(id));
+      }
 
-      const [rows] = await pool.query(
-        `SELECT cf.id
-         FROM content_feed cf
-         WHERE (
-           cf.type = 1 AND EXISTS (
-             SELECT 1 FROM likes l WHERE l.user_id = ? AND l.news_id = cf.original_id
-           )
-         ) OR (
-           cf.type = 2 AND EXISTS (
-             SELECT 1 FROM com_likes cl WHERE cl.user_id = ? AND cl.com_id = cf.original_id
-           )
-         )`,
-        [userId, userId]
-      );
+      const [rows] = await pool.execute(query, queryParams);
 
-      const likedIds = rows.map((r) => r.id);
-      return reply.send({ likedIds });
+      if (rows.length === 0) {
+        return reply.status(404).send({
+          error: 'Contenido no encontrado'
+        });
+      }
+
+      const formattedItem = {
+        ...rows[0],
+        is_liked: Boolean(rows[0].is_liked)
+      };
+
+      reply.send(formattedItem);
+
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ error: 'Error al obtener los IDs likeados' });
+      reply.status(500).send({
+        error: 'Error interno del servidor',
+        message: error.message
+      });
     }
   });
+
+
 
   // Obtener estadísticas del feed
   fastify.get('/api/v1/feed/stats', {
@@ -872,6 +948,7 @@ async function feedRoutes(fastify, options) {
               content: { type: 'string' },
               autor: { type: 'string' },
               user_id: { type: 'integer' },
+              user_profile_picture: { type: 'string', nullable: true },
               created_at: { type: 'string', format: 'date-time' }
             }
           }
@@ -907,7 +984,7 @@ async function feedRoutes(fastify, options) {
       if (type === 1) {
         // Es una noticia
         [comments] = await pool.query(`
-          SELECT c.*, u.nombre as autor 
+          SELECT c.*, u.nombre as autor, u.profile_picture_url as user_profile_picture 
           FROM comments c 
           JOIN users u ON c.user_id = u.id 
           WHERE c.news_id = ? 
@@ -928,7 +1005,7 @@ async function feedRoutes(fastify, options) {
         `);
         
         [comments] = await pool.query(`
-          SELECT c.*, u.nombre as autor 
+          SELECT c.*, u.nombre as autor, u.profile_picture_url as user_profile_picture 
           FROM com_comments c 
           JOIN users u ON c.user_id = u.id 
           WHERE c.com_id = ? 
@@ -1120,126 +1197,6 @@ async function feedRoutes(fastify, options) {
     }
   }, syncFeed);
 
-  // Obtener un elemento del feed por tipo y ID original (para compatibilidad con frontend)
-  fastify.get('/api/v1/feed/by-original-id/:type/:originalId', {
-    schema: {
-      tags: ['Feed'],
-      summary: 'Obtener elemento del feed por tipo e ID original',
-      description: 'Endpoint para obtener un elemento del feed usando el ID original (news_id o com_id).',
-      params: {
-        type: 'object',
-        properties: {
-          type: { type: 'integer', enum: [1, 2], description: 'Tipo de contenido: 1=noticia, 2=comunidad' },
-          originalId: { type: 'integer', minimum: 1, description: 'ID original del contenido' }
-        },
-        required: ['type', 'originalId']
-      },
-      response: {
-        200: {
-          description: 'Elemento del feed encontrado',
-          ...schemas.feedItemSchema
-        },
-        404: {
-          description: 'Elemento no encontrado',
-          type: 'object',
-          properties: {
-            error: { type: 'string' }
-          }
-        }
-      }
-    }
-  }, async (request, reply) => {
-    const pool = require('../config/database');
-    const { type, originalId } = request.params;
-    const userId = request.user ? request.user.id : null;
-
-    try {
-      let query;
-      const queryParams = [];
-      
-      if (userId) {
-        // Si hay usuario autenticado, verificar likes
-        query = `
-          SELECT 
-            cf.id,
-            cf.titulo,
-            cf.descripcion,
-            cf.resumen,
-            cf.image_url,
-            cf.type,
-            cf.original_id,
-            cf.user_id,
-            cf.user_name,
-            cf.user_profile_picture,
-            cf.published_at,
-            cf.created_at,
-            cf.updated_at,
-            cf.original_url,
-            cf.is_oficial,
-            cf.video_url,
-            cf.likes_count,
-            cf.comments_count,
-            CASE 
-              WHEN cf.type = 1 AND EXISTS(SELECT 1 FROM likes WHERE user_id = ? AND news_id = cf.original_id) THEN 1
-              WHEN cf.type = 2 AND EXISTS(SELECT 1 FROM com_likes WHERE user_id = ? AND com_id = cf.original_id) THEN 1
-              ELSE 0 
-            END as is_liked
-          FROM content_feed cf
-          WHERE cf.type = ? AND cf.original_id = ?
-        `;
-        queryParams.push(userId, userId, parseInt(type), parseInt(originalId));
-      } else {
-        // Si no hay usuario, is_liked siempre es false
-        query = `
-          SELECT 
-            cf.id,
-            cf.titulo,
-            cf.descripcion,
-            cf.resumen,
-            cf.image_url,
-            cf.type,
-            cf.original_id,
-            cf.user_id,
-            cf.user_name,
-            cf.user_profile_picture,
-            cf.published_at,
-            cf.created_at,
-            cf.updated_at,
-            cf.original_url,
-            cf.is_oficial,
-            cf.video_url,
-            cf.likes_count,
-            cf.comments_count,
-            0 as is_liked
-          FROM content_feed cf
-          WHERE cf.type = ? AND cf.original_id = ?
-        `;
-        queryParams.push(parseInt(type), parseInt(originalId));
-      }
-
-      const [rows] = await pool.execute(query, queryParams);
-
-      if (rows.length === 0) {
-        return reply.status(404).send({
-          error: 'Contenido no encontrado'
-        });
-      }
-
-      const formattedItem = {
-        ...rows[0],
-        is_liked: Boolean(rows[0].is_liked)
-      };
-
-      reply.send(formattedItem);
-
-    } catch (error) {
-      request.log.error(error);
-      reply.status(500).send({
-        error: 'Error interno del servidor',
-        message: error.message
-      });
-    }
-  });
 }
 
 module.exports = feedRoutes; 

@@ -1,0 +1,13 @@
+id
+titulo
+descripcion
+image_url
+image_thumbnail_url
+original_url
+diario
+categoria
+published_at
+is_oficial
+created_by
+created_at
+updated_at

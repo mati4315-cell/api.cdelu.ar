@@ -1,0 +1,63 @@
+--------------------------------------------------------------------------------
+🚀 GUÍA TÉCNICA: ESTABILIZACIÓN DE ENCUESTAS Y NAVEGACIÓN DE FEED (2026)
+--------------------------------------------------------------------------------
+Este documento detalla los cambios realizados en el sistema de noticias y encuestas
+para corregir errores SQL, mejorar la carga de datos y optimizar la UX.
+
+1. REFORZAMIENTO DE ENCUESTAS (BACKEND)
+---------------------------------------
+Se detectaron errores 500 causados por consultas a una columna inexistente ('has_voted').
+El sistema ha sido migrado de una estructura de columna a una de "Existencia de Fila".
+
+📜 Cambios en C:\milagro2\src\features\surveys\surveys.repository.js:
+- 'fetchUserVoteForSurvey': Modificado para usar SELECT id ... LIMIT 1 en lugar de 
+  intentar filtrar por una columna booleana.
+- 'insertVotes': Eliminada la columna 'has_voted' de la sentencia INSERT.
+- 'fetchActiveSurveysWithCounts': Cambiado SELECT restringido a 'SELECT s.*' para 
+  asegurar que los campos 'question' (mapeado como title) y 'description' lleguen al frontend.
+
+🛠️ ESQUEMA BASE DE DATOS (IMPORTANTE):
+La tabla `survey_votes` NO requiere la columna `has_voted`.
+Se espera un esquema de este tipo para que el código funcione:
+
+CREATE TABLE `survey_votes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `survey_id` int(11) NOT NULL,
+  `option_id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `user_ip` varchar(45) NOT NULL,
+  `user_agent` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+La comprobación de la autoría del voto se realiza verificando si existe la fila
+con el `user_id` y `survey_id` correspondientes.
+
+3. OPTIMIZACIÓN DE NAVEGACIÓN "POST DETAIL" (FRONTEND)
+-----------------------------------------------------
+Se resolvieron problemas de visibilidad al navegar a una noticia específica (/noticia/:id).
+
+📜 Cambios en d:\WEB MATER\frontend\src\components\feed\FeedMain.vue:
+- Lógica de Carga Progresiva: Se modificó la visibilidad de los "Skeletons". 
+  Ahora, si el post destacado (highlightedPost) ya fue cargado, se muestra la lista 
+  de inmediato aunque el feed inferior siga cargando. Esto evita el parpadeo y la 
+  sensación de que "la noticia no aparece".
+
+📜 Cambios en d:\WEB MATER\frontend\src\components\feed\FeedItem.vue:
+- Scroll Margin: Se añadió 'scroll-margin-top: 100px' a los títulos.
+- UX de Anclaje: Al navegar vía Hash (#titulo o #comments-section), el contenido 
+  ya no queda oculto debajo de las pestañas pegajosas (Sticky Tabs).
+
+3. MAPEOS CLAVE Y RUTEO
+-----------------------
+- Ruta Backend: /api/v1/feed/by-original-id/:type/:originalId
+  Mapea el ID de la tabla original (news/community) al ID del Unified Feed.
+- El Frontend ahora usa: 
+  `PostDetailWithFeedView.vue` -> `FeedMain` -> `feedStore.getPostByOriginalId`
+
+--------------------------------------------------------------------------------
+Estado Actual: ESTABLE
+Fecha de actualización: 2026-04-04
+Antigravity AI Development Team
+--------------------------------------------------------------------------------

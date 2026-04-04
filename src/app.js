@@ -16,6 +16,7 @@ const featureFacebookRoutes = require('./features/facebook/facebook.routes');
 const featureUsersRoutes = require('./features/users/users.routes');
 const adminRoutes = require('./routes/admin.routes.js');
 const profileRoutes = require('./routes/profile.routes.js');
+const usersRepository = require('./features/users/users.repository');
 const { authenticate, authorize } = require('./middlewares/auth');
 
 // Registrar plugins
@@ -290,23 +291,36 @@ fastify.get('/api/v1/video-settings/public', async (request, reply) => {
   });
 });
 
-// GET /api/v1/profile/me/stats - Estadísticas del perfil del usuario (Mockup compatible)
+// GET /api/v1/profile/me/stats - Estadísticas del perfil del usuario
 fastify.get('/api/v1/profile/me/stats', { onRequest: [authenticate] }, async (request, reply) => {
-  return reply.send({
-    lottery_participations: 0,
-    lottery_wins: 0,
-    community_posts_count: 0,
-    comments_count: 0
-  });
+  try {
+    const stats = await usersRepository.getUserStats(request.user.id);
+    return reply.send({
+      ...stats,
+      lottery_participations: 0, // Aún sin implementar real
+      lottery_wins: 0,           // Aún sin implementar real
+      community_posts_count: stats.posts_count,
+      comments_count: 0          // Aún sin implementar real
+    });
+  } catch (error) {
+    console.error('Error fetching profile stats:', error);
+    return reply.send({ following_count: 0, followers_count: 0, posts_count: 0 });
+  }
 });
 
 // GET /api/v1/users/me/stats - Alias para estadísticas de usuario
 fastify.get('/api/v1/users/me/stats', { onRequest: [authenticate] }, async (request, reply) => {
-  return reply.send({
-    noticias_creadas: 0,
-    comentarios_realizados: 0,
-    likes_dados: 0
-  });
+  try {
+    const stats = await usersRepository.getUserStats(request.user.id);
+    return reply.send({
+      ...stats,
+      noticias_creadas: stats.posts_count,
+      comentarios_realizados: 0,
+      likes_dados: 0
+    });
+  } catch (error) {
+    return reply.send({ following_count: 0, followers_count: 0, posts_count: 0 });
+  }
 });
 
 // Ruta para favicon (evita 404 en logs) - DEBE estar antes del hook onRequest

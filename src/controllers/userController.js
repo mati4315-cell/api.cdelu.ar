@@ -56,7 +56,8 @@ async function saveProfilePicture(fileData) {
   }
 
   const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-  const outputFilename = `profile-${uniqueSuffix}.jpg`; // Siempre guardar como JPG
+  const originalExt = path.extname(fileData.filename) || '.jpg';
+  const outputFilename = sharp ? `profile-${uniqueSuffix}.jpg` : `profile-${uniqueSuffix}${originalExt}`;
   const outputFilePath = path.join(PROFILE_UPLOAD_DIR, outputFilename);
   const publicFilePath = `/uploads/profile-pictures/${outputFilename}`;
 
@@ -94,20 +95,20 @@ async function saveProfilePicture(fileData) {
     }
 
     if (sharp) {
-      // Procesar imagen con Sharp: redimensionar y optimizar
-      await sharp(fileBuffer)
-        .resize(PROFILE_IMAGE_DIMENSIONS.width, PROFILE_IMAGE_DIMENSIONS.height, {
-          fit: 'cover',
-          position: 'center'
-        })
-        .jpeg({ quality: 85 })
-        .toFile(outputFilePath);
-      
-      console.log(`✅ Foto de perfil procesada y guardada: ${outputFilePath}`);
+      try {
+        await sharp(fileBuffer)
+          .resize(PROFILE_IMAGE_DIMENSIONS.width, PROFILE_IMAGE_DIMENSIONS.height, {
+            fit: 'cover',
+            position: 'center'
+          })
+          .jpeg({ quality: 85 })
+          .toFile(outputFilePath);
+      } catch (sharpError) {
+        console.error('Sharp failed, falling back to direct write:', sharpError);
+        await fs.promises.writeFile(outputFilePath, fileBuffer);
+      }
     } else {
-      // Guardar sin procesamiento si Sharp no está disponible
       await fs.promises.writeFile(outputFilePath, fileBuffer);
-      console.log(`✅ Foto de perfil guardada sin procesamiento: ${outputFilePath}`);
     }
 
     return publicFilePath;

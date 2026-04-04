@@ -98,7 +98,7 @@ async function fetchOptionsBasic(surveyId) {
 async function fetchActiveSurveysWithCounts(limit) {
   const [rows] = await pool.execute(
     `SELECT 
-       s.id, s.question, s.is_multiple_choice, s.max_votes_per_user, s.expires_at,
+       s.*,
        COUNT(DISTINCT so.id) as options_count,
        COUNT(DISTINCT sv.id) as total_votes
      FROM surveys s
@@ -115,7 +115,7 @@ async function fetchActiveSurveysWithCounts(limit) {
 
 async function fetchUserVoteForSurvey(surveyId, userId) {
   const [rows] = await pool.execute(
-    'SELECT id FROM survey_votes WHERE survey_id = ? AND user_id = ? AND has_voted = TRUE LIMIT 1',
+    'SELECT id FROM survey_votes WHERE survey_id = ? AND user_id = ? LIMIT 1',
     [surveyId, userId]
   );
   return rows.length > 0;
@@ -162,7 +162,7 @@ async function fetchValidOptionsForSurvey(optionIds, surveyId) {
 async function insertVotes(connection, surveyId, optionIds, userId, userIp, userAgent) {
   for (const optionId of optionIds) {
     await connection.execute(
-      'INSERT INTO survey_votes (survey_id, option_id, user_id, user_ip, user_agent, has_voted) VALUES (?, ?, ?, ?, ?, TRUE)',
+      'INSERT INTO survey_votes (survey_id, option_id, user_id, user_ip, user_agent) VALUES (?, ?, ?, ?, ?)',
       [surveyId, optionId, userId, userIp, userAgent || null]
     );
   }
